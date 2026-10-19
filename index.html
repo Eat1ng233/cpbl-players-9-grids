@@ -1,0 +1,797 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>中職九宮格</title>
+<style>
+  :root {
+    --bg: #f4f2ee;
+    --surface: #ffffff;
+    --ink: #1c1b19;
+    --ink-2: #5d5a54;
+    --ink-3: #8f8b83;
+    --line: #e2ded6;
+    --accent: #1f4fd1;
+    --accent-ink: #ffffff;
+    --accent-soft: #e4ebfc;
+    --radius: 12px;
+    --shadow: 0 1px 2px rgba(0,0,0,.06), 0 2px 8px rgba(0,0,0,.05);
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", sans-serif;
+    line-height: 1.5;
+    -webkit-tap-highlight-color: transparent;
+  }
+  button { font: inherit; color: inherit; }
+  .wrap { max-width: 980px; margin: 0 auto; padding: 0 16px; }
+  [hidden] { display: none !important; }
+
+  /* ---------- 首頁 ---------- */
+  .home { min-height: 100vh; display: flex; flex-direction: column; justify-content: center; padding: 48px 0; }
+  .home .eyebrow { font-size: 14px; color: var(--ink-2); letter-spacing: .08em; margin: 0 0 8px; }
+  .home h1 { font-size: clamp(28px, 6vw, 44px); line-height: 1.2; margin: 0 0 12px; }
+  .home .lead { color: var(--ink-2); margin: 0 0 32px; max-width: 34em; }
+  .modes { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; }
+  .mode {
+    text-align: left; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius);
+    padding: 24px; cursor: pointer; box-shadow: var(--shadow); transition: transform .15s, border-color .15s;
+  }
+  .mode:hover { transform: translateY(-2px); border-color: var(--accent); }
+  .mode:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+  .mode strong { display: block; font-size: 24px; margin-bottom: 4px; }
+  .mode span { color: var(--ink-2); font-size: 14px; }
+  .home .note { margin-top: 24px; font-size: 13px; color: var(--ink-3); }
+
+  /* ---------- 進度列 ---------- */
+  .topbar { position: sticky; top: 0; z-index: 5; background: var(--bg); border-bottom: 1px solid var(--line); }
+  .topbar .wrap { padding-top: 10px; padding-bottom: 10px; }
+  .toprow { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .phase { font-weight: 700; font-size: 15px; }
+  .phase .sep { color: var(--ink-3); font-weight: 400; margin: 0 4px; }
+  .phase .count { font-weight: 400; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+  .navbtns { display: flex; gap: 4px; }
+  .ghost {
+    background: none; border: 1px solid var(--line); border-radius: 999px; padding: 4px 12px;
+    font-size: 13px; color: var(--ink-2); cursor: pointer;
+  }
+  .ghost:hover:not(:disabled) { border-color: var(--ink-3); color: var(--ink); }
+  .ghost:disabled { opacity: .4; cursor: default; }
+  .bar { height: 6px; background: var(--line); border-radius: 999px; margin-top: 8px; overflow: hidden; }
+  .bar i { display: block; height: 100%; width: 0; background: var(--accent); border-radius: 999px; transition: width .3s ease; }
+  .stages { display: flex; gap: 12px; margin-top: 6px; font-size: 12px; color: var(--ink-3); }
+  .stages .on { color: var(--accent); font-weight: 700; }
+  .stages .done { color: var(--ink-2); }
+
+  /* ---------- 選擇畫面 ---------- */
+  .pick { padding-top: 16px; padding-bottom: 96px; }
+  .prompt { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+  .prompt h2 { font-size: 18px; margin: 0; }
+  .prompt .hint { font-size: 13px; color: var(--ink-2); white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .prompt .hint.flash { animation: flash .5s; }
+  @keyframes flash { 30% { color: #c0392b; } }
+
+  .cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+  .cards.few { grid-template-columns: repeat(var(--n), minmax(0, 200px)); justify-content: center; gap: 12px; }
+  @media (min-width: 760px) {
+    .cards { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; }
+  }
+
+  .card {
+    position: relative; display: flex; flex-direction: column; text-align: left; padding: 0;
+    background: var(--surface); border: 2px solid transparent; border-radius: var(--radius);
+    box-shadow: var(--shadow); overflow: hidden; cursor: pointer; transition: transform .12s, border-color .12s;
+  }
+  .card:hover { transform: translateY(-1px); }
+  .card:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+  .card.sel { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft), var(--shadow); }
+  .band {
+    display: flex; align-items: center; justify-content: space-between; gap: 4px;
+    background: var(--team); color: var(--team-ink); padding: 4px 8px; font-size: 11px; font-weight: 700;
+    min-height: 24px;
+  }
+  .tag { font-weight: 400; background: rgba(255,255,255,.25); border-radius: 4px; padding: 0 5px; }
+  .tag.dark { background: rgba(0,0,0,.12); }
+  .name {
+    font-size: 17px; font-weight: 700; padding: 8px 8px 6px; line-height: 1.25;
+    border-left: 4px solid var(--team); margin: 6px 0 0; word-break: break-all;
+  }
+  .name.long { font-size: 14px; }
+  .stats { display: grid; grid-template-columns: repeat(var(--cols), 1fr); gap: 2px; padding: 4px 8px 8px; margin: 0; }
+  .stats div { min-width: 0; }
+  .stats dt { font-size: 10px; color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .stats dd { margin: 0; font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .check {
+    position: absolute; top: 30px; right: 6px; width: 22px; height: 22px; border-radius: 50%;
+    background: var(--accent); color: var(--accent-ink); font-size: 12px; font-weight: 700;
+    display: grid; place-items: center; transform: scale(0); transition: transform .15s;
+  }
+  .card.sel .check { transform: scale(1); }
+
+  @media (max-width: 420px) {
+    .name { font-size: 15px; padding: 6px 6px 4px; }
+    .name.long { font-size: 12px; }
+    .stats { grid-template-columns: repeat(var(--cols), auto); justify-content: space-between; gap: 4px; padding: 2px 6px 6px; }
+    .stats dt { font-size: 9px; overflow: visible; }
+    .stats dd { font-size: 12px; }
+    .band { padding: 3px 6px; font-size: 10px; }
+  }
+
+  .actionbar {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 5;
+    background: linear-gradient(to top, var(--bg) 70%, rgba(244,242,238,0));
+    padding: 16px 0 calc(12px + env(safe-area-inset-bottom));
+  }
+  .actionbar .wrap { display: flex; justify-content: center; }
+  .primary {
+    width: 100%; max-width: 360px; padding: 14px 20px; border: 0; border-radius: 999px;
+    background: var(--accent); color: var(--accent-ink); font-size: 16px; font-weight: 700; cursor: pointer;
+  }
+  .primary:disabled { background: #b9b5ad; cursor: default; }
+  .primary:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
+
+  /* ---------- 結果頁 ---------- */
+  .result { padding-top: 24px; padding-bottom: 48px; max-width: 592px; }
+  .result h2 { font-size: 24px; margin: 0 0 4px; }
+  .result .sub { color: var(--ink-2); margin: 0 0 20px; font-size: 14px; }
+  .grid9 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; max-width: 560px; }
+  .cell {
+    position: relative; aspect-ratio: 1; border-radius: var(--radius); background: var(--team); color: var(--team-ink);
+    display: flex; flex-direction: column; justify-content: flex-end; padding: 10px; overflow: hidden; box-shadow: var(--shadow);
+  }
+  .cell .rank { position: absolute; top: 8px; left: 10px; font-size: 13px; font-weight: 700; opacity: .85; }
+  .cell .rank.top { font-size: 22px; opacity: 1; }
+  .cell .cname { font-size: clamp(15px, 4.6vw, 22px); font-weight: 800; line-height: 1.2; word-break: break-all; }
+  .cell .cname.long { font-size: clamp(12px, 3.4vw, 17px); }
+  .cell .cteam { font-size: 12px; opacity: .85; }
+  .result .actions { margin-top: 32px; display: flex; justify-content: center; }
+  .result h3 { font-size: 18px; margin: 36px 0 4px; }
+  .result .note { font-size: 13px; color: var(--ink-2); margin: 0 0 12px; }
+
+  .table-scroll { overflow-x: auto; background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow); }
+  .stat-table { border-collapse: collapse; width: 100%; font-size: 13px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .stat-table th, .stat-table td { padding: 8px 10px; text-align: right; border-bottom: 1px solid var(--line); }
+  .stat-table th { font-size: 11px; font-weight: 600; color: var(--ink-3); }
+  .stat-table tr:last-child td { border-bottom: 0; }
+  .stat-table .who { text-align: left; position: sticky; left: 0; background: var(--surface); }
+  .stat-table td.who { border-left: 4px solid var(--team); }
+  .stat-table .who b { display: inline-block; width: 1.4em; color: var(--ink-3); font-weight: 600; }
+  .stat-table .who small { color: var(--ink-3); margin-left: 4px; }
+
+  .radar-box { background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow); padding: 12px; }
+  .radar { display: block; width: 100%; max-width: 420px; margin: 0 auto; height: auto; overflow: visible; }
+  .radar .ring { fill: none; stroke: var(--line); }
+  .radar .spoke { stroke: var(--line); }
+  .radar .avg { fill: none; stroke: var(--ink-3); stroke-width: 1.5; stroke-dasharray: 4 4; }
+  .radar .mine { fill: var(--accent); fill-opacity: .18; stroke: var(--accent); stroke-width: 2.5; stroke-linejoin: round; }
+  .radar .dot { fill: var(--accent); }
+  .radar .lbl { font-size: 12px; font-weight: 700; fill: var(--ink); }
+  .radar .val { font-size: 12px; fill: var(--accent); font-weight: 700; }
+  .radar .tick { font-size: 10px; fill: var(--ink-3); }
+  .legend { display: flex; justify-content: center; gap: 16px; font-size: 12px; color: var(--ink-2); margin-top: 4px; }
+  .legend i { display: inline-block; width: 18px; height: 0; vertical-align: middle; margin-right: 6px; }
+  .legend .l-mine { border-top: 3px solid var(--accent); }
+  .legend .l-avg { border-top: 2px dashed var(--ink-3); }
+
+  .recs { display: grid; gap: 8px; }
+  .rec {
+    display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 4px 12px;
+    background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow);
+    border-left: 6px solid var(--team); padding: 12px 14px;
+  }
+  .rec .rname { font-size: 17px; font-weight: 700; }
+  .rec .rmeta { font-size: 12px; color: var(--ink-2); }
+  .rec .sim { grid-row: span 2; text-align: right; font-size: 22px; font-weight: 800; color: var(--accent); font-variant-numeric: tabular-nums; }
+  .rec .sim small { display: block; font-size: 11px; font-weight: 400; color: var(--ink-3); }
+</style>
+</head>
+<body>
+
+<!-- 首頁 -->
+<section id="home" class="wrap home">
+  <p class="eyebrow">2026 CPBL</p>
+  <h1>中職球員九宮格</h1>
+  <p class="lead">一路「x 選 y」，從資格池的每一位球員裡挑出你的九宮格。卡片只顯示熟悉的數據，憑感覺選就好。</p>
+  <div class="modes">
+    <button class="mode" data-type="batters">
+      <strong>打者</strong>
+      <span id="desc-batters"></span>
+    </button>
+    <button class="mode" data-type="pitchers">
+      <strong>投手</strong>
+      <span id="desc-pitchers"></span>
+    </button>
+  </div>
+  <p class="note" id="home-note"></p>
+</section>
+
+<!-- 遊戲畫面 -->
+<section id="game" hidden>
+  <header class="topbar">
+    <div class="wrap">
+      <div class="toprow">
+        <div class="phase" id="phase"></div>
+        <div class="navbtns">
+          <button class="ghost" id="btn-back">上一步</button>
+          <button class="ghost" id="btn-home">首頁</button>
+        </div>
+      </div>
+      <div class="bar"><i id="bar-fill"></i></div>
+      <div class="stages" id="stages"></div>
+    </div>
+  </header>
+
+  <main id="pick" class="wrap pick">
+    <div class="prompt">
+      <h2 id="prompt-title"></h2>
+      <span class="hint" id="prompt-hint"></span>
+    </div>
+    <div class="cards" id="cards"></div>
+  </main>
+
+  <main id="result" class="wrap result" hidden>
+    <h2>你的中職九宮格</h2>
+    <p class="sub" id="result-sub"></p>
+    <div class="grid9" id="grid9"></div>
+
+    <h3>九宮格球員數據</h3>
+    <p class="note">2026 年一軍例行賽成績，依你的排名排列。</p>
+    <div class="table-scroll"><table class="stat-table" id="stat-table"></table></div>
+
+    <h3>你的偏好雷達圖</h3>
+    <p class="note" id="radar-note"></p>
+    <div class="radar-box">
+      <svg class="radar" id="radar" viewBox="-180 -165 360 315" role="img" aria-label="偏好雷達圖"></svg>
+      <div class="legend"><span><i class="l-mine"></i>你的輪廓</span><span><i class="l-avg"></i>資格池平均（PR 50）</span></div>
+    </div>
+
+    <h3>你可能也會喜歡的球員</h3>
+    <p class="note">資格池中數據輪廓與你最接近、但不在九宮格裡的 3 位。</p>
+    <div class="recs" id="recs"></div>
+
+    <div class="actions">
+      <button class="primary" id="btn-restart">重新開始</button>
+    </div>
+  </main>
+
+  <div class="actionbar" id="actionbar">
+    <div class="wrap"><button class="primary" id="btn-next" disabled>確定</button></div>
+  </div>
+</section>
+
+<script>
+// ===== 資料：由 data/output/players.json 直接貼入，更新資料時整段替換 =====
+const DATA = {
+"meta":{"season":2026,"generated":"2026-10-19T01:39","thresholds":{"batter_min_pa":150,"starter_min_ip":70,"swing_min_ip":50,"reliever_min_g":30,"starter_ratio":0.7,"reliever_ratio":0.2},"batter_features":["ISO","K%","BB%","Barrel%","LA"],"pitcher_features":["Velo","K%","BB%","GO/AO"]},
+"batters":[
+{"name":"魔鷹","team":"台鋼雄鷹","PA":488,"display":{"AVG":0.294,"OBP":0.361,"SLG":0.517,"OPS":0.878,"HR":20,"RBI":90,"SB":2},"raw":{"ISO":0.224,"K%":15.2,"BB%":8.2,"Barrel%":14.6,"LA":19.2},"pr":{"ISO":100.0,"K%":54.9,"BB%":57.0,"Barrel%":100.0,"LA":99.3}},
+{"name":"張育成","team":"富邦悍將","PA":431,"display":{"AVG":0.285,"OBP":0.39,"SLG":0.47,"OPS":0.86,"HR":16,"RBI":48,"SB":9},"raw":{"ISO":0.185,"K%":17.6,"BB%":11.6,"Barrel%":11.4,"LA":17.4},"pr":{"ISO":97.2,"K%":69.0,"BB%":93.0,"Barrel%":97.9,"LA":92.3}},
+{"name":"范國宸","team":"富邦悍將","PA":436,"display":{"AVG":0.282,"OBP":0.344,"SLG":0.427,"OPS":0.771,"HR":13,"RBI":62,"SB":2},"raw":{"ISO":0.145,"K%":16.5,"BB%":7.6,"Barrel%":5.8,"LA":18.4},"pr":{"ISO":93.0,"K%":64.1,"BB%":47.9,"Barrel%":78.9,"LA":95.8}},
+{"name":"朱育賢","team":"味全龍","PA":451,"display":{"AVG":0.235,"OBP":0.302,"SLG":0.359,"OPS":0.661,"HR":13,"RBI":49,"SB":0},"raw":{"ISO":0.125,"K%":20.2,"BB%":6.3,"Barrel%":7.0,"LA":14.9},"pr":{"ISO":88.0,"K%":80.3,"BB%":38.0,"Barrel%":86.6,"LA":80.3}},
+{"name":"郭天信","team":"味全龍","PA":507,"display":{"AVG":0.252,"OBP":0.309,"SLG":0.359,"OPS":0.668,"HR":9,"RBI":41,"SB":24},"raw":{"ISO":0.106,"K%":9.6,"BB%":7.0,"Barrel%":1.4,"LA":11.1},"pr":{"ISO":77.5,"K%":8.5,"BB%":43.7,"Barrel%":35.9,"LA":49.3}},
+{"name":"威克","team":"樂天桃猿","PA":211,"display":{"AVG":0.23,"OBP":0.289,"SLG":0.435,"OPS":0.724,"HR":8,"RBI":29,"SB":5},"raw":{"ISO":0.204,"K%":19.4,"BB%":5.8,"Barrel%":11.4,"LA":9.7},"pr":{"ISO":98.6,"K%":76.1,"BB%":27.5,"Barrel%":97.9,"LA":36.6}},
+{"name":"蘇智傑","team":"統一7-ELEVEn獅","PA":289,"display":{"AVG":0.255,"OBP":0.301,"SLG":0.408,"OPS":0.709,"HR":8,"RBI":40,"SB":5},"raw":{"ISO":0.154,"K%":11.1,"BB%":5.5,"Barrel%":8.4,"LA":13.1},"pr":{"ISO":95.8,"K%":23.2,"BB%":21.8,"Barrel%":93.0,"LA":62.7}},
+{"name":"劉基鴻","team":"味全龍","PA":428,"display":{"AVG":0.246,"OBP":0.301,"SLG":0.357,"OPS":0.658,"HR":8,"RBI":48,"SB":5},"raw":{"ISO":0.11,"K%":14.2,"BB%":6.1,"Barrel%":4.5,"LA":17.0},"pr":{"ISO":80.3,"K%":43.7,"BB%":33.8,"Barrel%":70.4,"LA":88.7}},
+{"name":"王柏融","team":"台鋼雄鷹","PA":376,"display":{"AVG":0.253,"OBP":0.303,"SLG":0.358,"OPS":0.661,"HR":7,"RBI":50,"SB":6},"raw":{"ISO":0.105,"K%":20.7,"BB%":5.3,"Barrel%":7.0,"LA":14.7},"pr":{"ISO":76.1,"K%":83.1,"BB%":19.0,"Barrel%":86.6,"LA":77.5}},
+{"name":"曾頌恩","team":"中信兄弟","PA":244,"display":{"AVG":0.284,"OBP":0.361,"SLG":0.431,"OPS":0.792,"HR":6,"RBI":33,"SB":1},"raw":{"ISO":0.147,"K%":14.8,"BB%":11.5,"Barrel%":10.0,"LA":14.2},"pr":{"ISO":94.4,"K%":50.7,"BB%":91.5,"Barrel%":95.8,"LA":74.6}},
+{"name":"李勛傑","team":"樂天桃猿","PA":294,"display":{"AVG":0.225,"OBP":0.31,"SLG":0.349,"OPS":0.659,"HR":6,"RBI":27,"SB":0},"raw":{"ISO":0.123,"K%":29.1,"BB%":10.7,"Barrel%":7.6,"LA":10.2},"pr":{"ISO":85.9,"K%":100.0,"BB%":83.1,"Barrel%":90.1,"LA":40.8}},
+{"name":"王苡丞","team":"富邦悍將","PA":322,"display":{"AVG":0.24,"OBP":0.293,"SLG":0.338,"OPS":0.631,"HR":6,"RBI":39,"SB":4},"raw":{"ISO":0.098,"K%":16.5,"BB%":6.2,"Barrel%":2.4,"LA":16.9},"pr":{"ISO":71.1,"K%":64.1,"BB%":36.6,"Barrel%":52.8,"LA":87.3}},
+{"name":"王念好","team":"富邦悍將","PA":343,"display":{"AVG":0.211,"OBP":0.3,"SLG":0.338,"OPS":0.638,"HR":6,"RBI":26,"SB":3},"raw":{"ISO":0.127,"K%":23.6,"BB%":11.1,"Barrel%":7.7,"LA":17.3},"pr":{"ISO":90.1,"K%":94.4,"BB%":85.9,"Barrel%":91.5,"LA":90.1}},
+{"name":"岳政華","team":"中信兄弟","PA":353,"display":{"AVG":0.221,"OBP":0.297,"SLG":0.333,"OPS":0.63,"HR":6,"RBI":32,"SB":6},"raw":{"ISO":0.112,"K%":21.0,"BB%":8.8,"Barrel%":3.3,"LA":11.1},"pr":{"ISO":83.1,"K%":84.5,"BB%":71.1,"Barrel%":63.4,"LA":49.3}},
+{"name":"陳聖平","team":"統一7-ELEVEn獅","PA":375,"display":{"AVG":0.233,"OBP":0.286,"SLG":0.343,"OPS":0.629,"HR":6,"RBI":32,"SB":6},"raw":{"ISO":0.11,"K%":12.3,"BB%":6.7,"Barrel%":1.7,"LA":11.1},"pr":{"ISO":80.3,"K%":28.2,"BB%":40.8,"Barrel%":42.3,"LA":49.3}},
+{"name":"陳晨威","team":"樂天桃猿","PA":411,"display":{"AVG":0.304,"OBP":0.361,"SLG":0.416,"OPS":0.777,"HR":6,"RBI":34,"SB":23},"raw":{"ISO":0.11,"K%":8.4,"BB%":8.1,"Barrel%":2.7,"LA":10.8},"pr":{"ISO":80.3,"K%":3.5,"BB%":54.2,"Barrel%":57.0,"LA":45.1}},
+{"name":"李丞齡","team":"統一7-ELEVEn獅","PA":184,"display":{"AVG":0.233,"OBP":0.261,"SLG":0.352,"OPS":0.613,"HR":5,"RBI":21,"SB":1},"raw":{"ISO":0.119,"K%":17.9,"BB%":3.8,"Barrel%":4.2,"LA":14.6},"pr":{"ISO":84.5,"K%":71.8,"BB%":5.6,"Barrel%":66.2,"LA":76.1}},
+{"name":"朱迦恩","team":"統一7-ELEVEn獅","PA":266,"display":{"AVG":0.283,"OBP":0.337,"SLG":0.408,"OPS":0.745,"HR":5,"RBI":35,"SB":7},"raw":{"ISO":0.125,"K%":22.6,"BB%":6.0,"Barrel%":6.5,"LA":18.1},"pr":{"ISO":88.0,"K%":91.5,"BB%":30.3,"Barrel%":83.1,"LA":94.4}},
+{"name":"宋晟睿","team":"中信兄弟","PA":339,"display":{"AVG":0.256,"OBP":0.329,"SLG":0.392,"OPS":0.721,"HR":5,"RBI":34,"SB":13},"raw":{"ISO":0.137,"K%":17.1,"BB%":8.6,"Barrel%":6.1,"LA":14.0},"pr":{"ISO":91.5,"K%":67.6,"BB%":65.5,"Barrel%":80.3,"LA":73.2}},
+{"name":"陳傑憲","team":"統一7-ELEVEn獅","PA":378,"display":{"AVG":0.322,"OBP":0.403,"SLG":0.412,"OPS":0.815,"HR":5,"RBI":45,"SB":7},"raw":{"ISO":0.09,"K%":9.8,"BB%":11.4,"Barrel%":1.0,"LA":6.7},"pr":{"ISO":63.4,"K%":10.6,"BB%":89.4,"Barrel%":28.2,"LA":14.1}},
+{"name":"陳俊秀","team":"中信兄弟","PA":258,"display":{"AVG":0.252,"OBP":0.357,"SLG":0.344,"OPS":0.701,"HR":4,"RBI":31,"SB":0},"raw":{"ISO":0.092,"K%":20.2,"BB%":13.2,"Barrel%":5.3,"LA":9.1},"pr":{"ISO":68.3,"K%":80.3,"BB%":97.2,"Barrel%":76.1,"LA":31.7}},
+{"name":"王順和","team":"味全龍","PA":338,"display":{"AVG":0.264,"OBP":0.346,"SLG":0.366,"OPS":0.712,"HR":4,"RBI":26,"SB":16},"raw":{"ISO":0.103,"K%":25.2,"BB%":9.6,"Barrel%":7.1,"LA":5.0},"pr":{"ISO":74.6,"K%":97.2,"BB%":77.5,"Barrel%":88.7,"LA":9.9}},
+{"name":"陳子豪","team":"味全龍","PA":347,"display":{"AVG":0.199,"OBP":0.297,"SLG":0.285,"OPS":0.582,"HR":4,"RBI":25,"SB":2},"raw":{"ISO":0.087,"K%":17.0,"BB%":10.8,"Barrel%":5.4,"LA":17.4},"pr":{"ISO":61.3,"K%":66.2,"BB%":84.5,"Barrel%":77.5,"LA":92.3}},
+{"name":"林子豪","team":"統一7-ELEVEn獅","PA":356,"display":{"AVG":0.269,"OBP":0.335,"SLG":0.359,"OPS":0.694,"HR":4,"RBI":38,"SB":2},"raw":{"ISO":0.091,"K%":16.3,"BB%":8.4,"Barrel%":3.0,"LA":16.2},"pr":{"ISO":65.5,"K%":62.0,"BB%":62.0,"Barrel%":62.0,"LA":84.5}},
+{"name":"張仁瑋","team":"中信兄弟","PA":440,"display":{"AVG":0.3,"OBP":0.34,"SLG":0.38,"OPS":0.72,"HR":4,"RBI":53,"SB":16},"raw":{"ISO":0.079,"K%":10.5,"BB%":6.1,"Barrel%":1.1,"LA":13.4},"pr":{"ISO":53.5,"K%":18.3,"BB%":33.8,"Barrel%":29.6,"LA":66.2}},
+{"name":"吉力吉撈·鞏冠","team":"味全龍","PA":245,"display":{"AVG":0.208,"OBP":0.302,"SLG":0.278,"OPS":0.58,"HR":3,"RBI":20,"SB":1},"raw":{"ISO":0.072,"K%":21.7,"BB%":10.0,"Barrel%":8.8,"LA":19.2},"pr":{"ISO":46.5,"K%":88.7,"BB%":79.6,"Barrel%":94.4,"LA":99.3}},
+{"name":"劉俊緯","team":"味全龍","PA":280,"display":{"AVG":0.272,"OBP":0.32,"SLG":0.346,"OPS":0.666,"HR":3,"RBI":27,"SB":7},"raw":{"ISO":0.074,"K%":13.2,"BB%":4.6,"Barrel%":2.2,"LA":12.2},"pr":{"ISO":48.6,"K%":31.0,"BB%":11.3,"Barrel%":48.6,"LA":55.6}},
+{"name":"林泓育","team":"樂天桃猿","PA":337,"display":{"AVG":0.258,"OBP":0.303,"SLG":0.355,"OPS":0.658,"HR":3,"RBI":46,"SB":0},"raw":{"ISO":0.098,"K%":15.4,"BB%":5.7,"Barrel%":6.2,"LA":10.2},"pr":{"ISO":71.1,"K%":56.3,"BB%":24.6,"Barrel%":81.7,"LA":40.8}},
+{"name":"岳東華","team":"中信兄弟","PA":361,"display":{"AVG":0.272,"OBP":0.325,"SLG":0.364,"OPS":0.689,"HR":3,"RBI":35,"SB":4},"raw":{"ISO":0.092,"K%":17.7,"BB%":6.9,"Barrel%":2.6,"LA":13.8},"pr":{"ISO":68.3,"K%":70.4,"BB%":42.3,"Barrel%":54.9,"LA":71.1}},
+{"name":"邱智呈","team":"統一7-ELEVEn獅","PA":393,"display":{"AVG":0.257,"OBP":0.365,"SLG":0.341,"OPS":0.706,"HR":3,"RBI":31,"SB":9},"raw":{"ISO":0.085,"K%":14.5,"BB%":13.5,"Barrel%":4.3,"LA":13.3},"pr":{"ISO":57.0,"K%":45.8,"BB%":98.6,"Barrel%":67.6,"LA":64.8}},
+{"name":"林子偉","team":"樂天桃猿","PA":364,"display":{"AVG":0.249,"OBP":0.291,"SLG":0.329,"OPS":0.62,"HR":3,"RBI":25,"SB":20},"raw":{"ISO":0.082,"K%":11.4,"BB%":4.7,"Barrel%":2.3,"LA":16.8},"pr":{"ISO":54.9,"K%":26.1,"BB%":13.4,"Barrel%":50.7,"LA":85.9}},
+{"name":"陳文杰","team":"台鋼雄鷹","PA":400,"display":{"AVG":0.275,"OBP":0.331,"SLG":0.377,"OPS":0.708,"HR":3,"RBI":35,"SB":8},"raw":{"ISO":0.102,"K%":11.0,"BB%":6.5,"Barrel%":2.8,"LA":9.3},"pr":{"ISO":73.2,"K%":20.4,"BB%":39.4,"Barrel%":59.9,"LA":34.5}},
+{"name":"馬傑森","team":"樂天桃猿","PA":414,"display":{"AVG":0.28,"OBP":0.33,"SLG":0.353,"OPS":0.683,"HR":3,"RBI":34,"SB":2},"raw":{"ISO":0.074,"K%":11.0,"BB%":4.9,"Barrel%":0.6,"LA":15.8},"pr":{"ISO":48.6,"K%":20.4,"BB%":15.5,"Barrel%":16.2,"LA":83.1}},
+{"name":"潘傑楷","team":"統一7-ELEVEn獅","PA":444,"display":{"AVG":0.305,"OBP":0.396,"SLG":0.397,"OPS":0.793,"HR":3,"RBI":42,"SB":6},"raw":{"ISO":0.091,"K%":14.6,"BB%":11.7,"Barrel%":1.2,"LA":12.6},"pr":{"ISO":65.5,"K%":48.6,"BB%":94.4,"Barrel%":31.0,"LA":59.2}},
+{"name":"李凱威","team":"味全龍","PA":447,"display":{"AVG":0.263,"OBP":0.338,"SLG":0.327,"OPS":0.665,"HR":3,"RBI":43,"SB":19},"raw":{"ISO":0.065,"K%":10.2,"BB%":9.3,"Barrel%":0.9,"LA":7.2},"pr":{"ISO":33.8,"K%":15.5,"BB%":74.6,"Barrel%":24.6,"LA":18.3}},
+{"name":"劉時豪","team":"台鋼雄鷹","PA":205,"display":{"AVG":0.233,"OBP":0.347,"SLG":0.291,"OPS":0.638,"HR":2,"RBI":19,"SB":1},"raw":{"ISO":0.058,"K%":13.7,"BB%":11.2,"Barrel%":0.7,"LA":4.3},"pr":{"ISO":28.2,"K%":35.2,"BB%":87.3,"Barrel%":19.7,"LA":7.7}},
+{"name":"詹子賢","team":"中信兄弟","PA":242,"display":{"AVG":0.257,"OBP":0.326,"SLG":0.335,"OPS":0.661,"HR":2,"RBI":19,"SB":0},"raw":{"ISO":0.078,"K%":14.5,"BB%":8.7,"Barrel%":4.9,"LA":19.0},"pr":{"ISO":52.1,"K%":45.8,"BB%":68.3,"Barrel%":71.8,"LA":97.2}},
+{"name":"蔣少宏","team":"味全龍","PA":239,"display":{"AVG":0.22,"OBP":0.254,"SLG":0.287,"OPS":0.541,"HR":2,"RBI":25,"SB":0},"raw":{"ISO":0.067,"K%":15.9,"BB%":2.9,"Barrel%":1.6,"LA":7.7},"pr":{"ISO":38.7,"K%":57.7,"BB%":1.4,"Barrel%":40.8,"LA":24.6}},
+{"name":"申皓瑋","team":"富邦悍將","PA":252,"display":{"AVG":0.261,"OBP":0.313,"SLG":0.348,"OPS":0.661,"HR":2,"RBI":25,"SB":4},"raw":{"ISO":0.087,"K%":20.2,"BB%":6.0,"Barrel%":6.6,"LA":15.0},"pr":{"ISO":61.3,"K%":80.3,"BB%":30.3,"Barrel%":84.5,"LA":81.7}},
+{"name":"宋嘉翔","team":"樂天桃猿","PA":278,"display":{"AVG":0.189,"OBP":0.23,"SLG":0.233,"OPS":0.463,"HR":2,"RBI":20,"SB":0},"raw":{"ISO":0.044,"K%":18.1,"BB%":4.0,"Barrel%":0.9,"LA":12.1},"pr":{"ISO":9.9,"K%":73.2,"BB%":8.5,"Barrel%":24.6,"LA":53.5}},
+{"name":"林政華","team":"樂天桃猿","PA":294,"display":{"AVG":0.251,"OBP":0.33,"SLG":0.319,"OPS":0.649,"HR":2,"RBI":25,"SB":12},"raw":{"ISO":0.068,"K%":14.6,"BB%":8.2,"Barrel%":1.4,"LA":13.8},"pr":{"ISO":41.5,"K%":48.6,"BB%":57.0,"Barrel%":35.9,"LA":71.1}},
+{"name":"黃韋盛","team":"中信兄弟","PA":283,"display":{"AVG":0.277,"OBP":0.333,"SLG":0.363,"OPS":0.696,"HR":2,"RBI":35,"SB":5},"raw":{"ISO":0.086,"K%":14.1,"BB%":7.8,"Barrel%":1.8,"LA":5.9},"pr":{"ISO":59.2,"K%":40.1,"BB%":51.4,"Barrel%":43.7,"LA":12.7}},
+{"name":"張士綸","team":"中信兄弟","PA":348,"display":{"AVG":0.327,"OBP":0.388,"SLG":0.392,"OPS":0.78,"HR":2,"RBI":39,"SB":16},"raw":{"ISO":0.065,"K%":9.8,"BB%":8.3,"Barrel%":0.7,"LA":7.3},"pr":{"ISO":33.8,"K%":10.6,"BB%":59.2,"Barrel%":19.7,"LA":20.4}},
+{"name":"高宇杰","team":"中信兄弟","PA":346,"display":{"AVG":0.286,"OBP":0.327,"SLG":0.338,"OPS":0.665,"HR":2,"RBI":32,"SB":2},"raw":{"ISO":0.051,"K%":13.3,"BB%":5.8,"Barrel%":0.7,"LA":13.6},"pr":{"ISO":19.0,"K%":32.4,"BB%":27.5,"Barrel%":19.7,"LA":69.0}},
+{"name":"江坤宇","team":"中信兄弟","PA":409,"display":{"AVG":0.283,"OBP":0.363,"SLG":0.35,"OPS":0.713,"HR":2,"RBI":40,"SB":3},"raw":{"ISO":0.067,"K%":10.0,"BB%":8.1,"Barrel%":2.2,"LA":10.2},"pr":{"ISO":38.7,"K%":14.1,"BB%":54.2,"Barrel%":48.6,"LA":40.8}},
+{"name":"曾子祐","team":"台鋼雄鷹","PA":500,"display":{"AVG":0.278,"OBP":0.344,"SLG":0.346,"OPS":0.69,"HR":2,"RBI":44,"SB":6},"raw":{"ISO":0.068,"K%":9.2,"BB%":8.6,"Barrel%":0.5,"LA":9.1},"pr":{"ISO":41.5,"K%":7.0,"BB%":65.5,"Barrel%":14.1,"LA":31.7}},
+{"name":"曾昱磬","team":"台鋼雄鷹","PA":180,"display":{"AVG":0.179,"OBP":0.373,"SLG":0.209,"OPS":0.582,"HR":1,"RBI":3,"SB":9},"raw":{"ISO":0.03,"K%":16.1,"BB%":20.6,"Barrel%":2.7,"LA":13.1},"pr":{"ISO":2.8,"K%":59.9,"BB%":100.0,"Barrel%":57.0,"LA":62.7}},
+{"name":"何品室融","team":"樂天桃猿","PA":160,"display":{"AVG":0.165,"OBP":0.269,"SLG":0.223,"OPS":0.492,"HR":1,"RBI":8,"SB":6},"raw":{"ISO":0.058,"K%":25.0,"BB%":8.8,"Barrel%":5.0,"LA":7.1},"pr":{"ISO":28.2,"K%":95.8,"BB%":71.1,"Barrel%":73.9,"LA":16.2}},
+{"name":"郭阜林","team":"台鋼雄鷹","PA":150,"display":{"AVG":0.25,"OBP":0.3,"SLG":0.307,"OPS":0.607,"HR":1,"RBI":13,"SB":0},"raw":{"ISO":0.057,"K%":21.3,"BB%":4.7,"Barrel%":1.9,"LA":11.9},"pr":{"ISO":25.4,"K%":85.9,"BB%":13.4,"Barrel%":45.1,"LA":52.1}},
+{"name":"林立","team":"樂天桃猿","PA":160,"display":{"AVG":0.287,"OBP":0.316,"SLG":0.353,"OPS":0.669,"HR":1,"RBI":14,"SB":3},"raw":{"ISO":0.069,"K%":13.5,"BB%":1.9,"Barrel%":2.4,"LA":2.8},"pr":{"ISO":44.4,"K%":33.8,"BB%":0.0,"Barrel%":52.8,"LA":4.2}},
+{"name":"林培緯","team":"統一7-ELEVEn獅","PA":180,"display":{"AVG":0.287,"OBP":0.339,"SLG":0.348,"OPS":0.687,"HR":1,"RBI":24,"SB":0},"raw":{"ISO":0.061,"K%":20.0,"BB%":6.1,"Barrel%":3.8,"LA":12.2},"pr":{"ISO":31.0,"K%":77.5,"BB%":33.8,"Barrel%":64.8,"LA":55.6}},
+{"name":"劉子杰","team":"樂天桃猿","PA":178,"display":{"AVG":0.247,"OBP":0.271,"SLG":0.3,"OPS":0.571,"HR":1,"RBI":8,"SB":0},"raw":{"ISO":0.053,"K%":8.4,"BB%":3.4,"Barrel%":1.3,"LA":10.3},"pr":{"ISO":21.1,"K%":3.5,"BB%":2.8,"Barrel%":32.4,"LA":43.7}},
+{"name":"梁家榮","team":"樂天桃猿","PA":267,"display":{"AVG":0.265,"OBP":0.331,"SLG":0.34,"OPS":0.671,"HR":1,"RBI":32,"SB":1},"raw":{"ISO":0.077,"K%":14.1,"BB%":8.7,"Barrel%":1.5,"LA":7.3},"pr":{"ISO":50.7,"K%":40.1,"BB%":68.3,"Barrel%":39.4,"LA":20.4}},
+{"name":"林智平","team":"樂天桃猿","PA":261,"display":{"AVG":0.261,"OBP":0.315,"SLG":0.307,"OPS":0.622,"HR":1,"RBI":17,"SB":0},"raw":{"ISO":0.046,"K%":11.1,"BB%":5.7,"Barrel%":1.4,"LA":7.5},"pr":{"ISO":11.3,"K%":23.2,"BB%":24.6,"Barrel%":35.9,"LA":22.5}},
+{"name":"戴培峰","team":"富邦悍將","PA":289,"display":{"AVG":0.221,"OBP":0.313,"SLG":0.275,"OPS":0.588,"HR":1,"RBI":24,"SB":1},"raw":{"ISO":0.054,"K%":12.5,"BB%":11.4,"Barrel%":2.8,"LA":10.9},"pr":{"ISO":22.5,"K%":29.6,"BB%":89.4,"Barrel%":59.9,"LA":46.5}},
+{"name":"董子恩","team":"富邦悍將","PA":266,"display":{"AVG":0.279,"OBP":0.325,"SLG":0.344,"OPS":0.669,"HR":1,"RBI":26,"SB":2},"raw":{"ISO":0.066,"K%":5.6,"BB%":4.5,"Barrel%":0.4,"LA":14.8},"pr":{"ISO":36.6,"K%":0.0,"BB%":9.9,"Barrel%":12.0,"LA":78.9}},
+{"name":"陳重羽","team":"統一7-ELEVEn獅","PA":301,"display":{"AVG":0.306,"OBP":0.379,"SLG":0.357,"OPS":0.736,"HR":1,"RBI":26,"SB":8},"raw":{"ISO":0.051,"K%":15.0,"BB%":9.0,"Barrel%":0.4,"LA":8.0},"pr":{"ISO":19.0,"K%":53.5,"BB%":73.2,"Barrel%":12.0,"LA":26.8}},
+{"name":"孔念恩","team":"富邦悍將","PA":315,"display":{"AVG":0.286,"OBP":0.309,"SLG":0.371,"OPS":0.68,"HR":1,"RBI":27,"SB":10},"raw":{"ISO":0.085,"K%":23.5,"BB%":3.5,"Barrel%":4.4,"LA":13.0},"pr":{"ISO":57.0,"K%":93.0,"BB%":4.2,"Barrel%":69.0,"LA":60.6}},
+{"name":"王威晨","team":"中信兄弟","PA":385,"display":{"AVG":0.292,"OBP":0.349,"SLG":0.361,"OPS":0.71,"HR":1,"RBI":47,"SB":6},"raw":{"ISO":0.069,"K%":8.6,"BB%":7.8,"Barrel%":0.6,"LA":9.8},"pr":{"ISO":44.4,"K%":5.6,"BB%":51.4,"Barrel%":16.2,"LA":38.0}},
+{"name":"王博玄","team":"台鋼雄鷹","PA":410,"display":{"AVG":0.307,"OBP":0.337,"SLG":0.357,"OPS":0.694,"HR":1,"RBI":28,"SB":22},"raw":{"ISO":0.05,"K%":14.1,"BB%":3.9,"Barrel%":0.9,"LA":7.1},"pr":{"ISO":16.9,"K%":40.1,"BB%":7.0,"Barrel%":24.6,"LA":16.2}},
+{"name":"張政禹","team":"味全龍","PA":439,"display":{"AVG":0.284,"OBP":0.356,"SLG":0.339,"OPS":0.695,"HR":1,"RBI":45,"SB":33},"raw":{"ISO":0.055,"K%":14.1,"BB%":9.4,"Barrel%":0.9,"LA":8.8},"pr":{"ISO":23.9,"K%":40.1,"BB%":76.1,"Barrel%":24.6,"LA":28.2}},
+{"name":"童堉誠","team":"富邦悍將","PA":150,"display":{"AVG":0.248,"OBP":0.347,"SLG":0.295,"OPS":0.642,"HR":0,"RBI":14,"SB":4},"raw":{"ISO":0.047,"K%":22.0,"BB%":10.0,"Barrel%":2.1,"LA":2.4},"pr":{"ISO":13.4,"K%":90.1,"BB%":79.6,"Barrel%":46.5,"LA":2.8}},
+{"name":"葉子霆","team":"富邦悍將","PA":173,"display":{"AVG":0.21,"OBP":0.293,"SLG":0.245,"OPS":0.538,"HR":0,"RBI":10,"SB":6},"raw":{"ISO":0.035,"K%":10.4,"BB%":7.5,"Barrel%":0.0,"LA":7.7},"pr":{"ISO":4.2,"K%":16.9,"BB%":46.5,"Barrel%":3.5,"LA":24.6}},
+{"name":"王政順","team":"中信兄弟","PA":181,"display":{"AVG":0.24,"OBP":0.333,"SLG":0.26,"OPS":0.593,"HR":0,"RBI":12,"SB":0},"raw":{"ISO":0.019,"K%":21.5,"BB%":10.5,"Barrel%":5.0,"LA":12.4},"pr":{"ISO":0.7,"K%":87.3,"BB%":81.7,"Barrel%":73.9,"LA":57.7}},
+{"name":"成晉","team":"樂天桃猿","PA":181,"display":{"AVG":0.22,"OBP":0.29,"SLG":0.239,"OPS":0.529,"HR":0,"RBI":8,"SB":3},"raw":{"ISO":0.019,"K%":14.9,"BB%":5.5,"Barrel%":0.0,"LA":13.5},"pr":{"ISO":0.7,"K%":52.1,"BB%":21.8,"Barrel%":3.5,"LA":67.6}},
+{"name":"林辰勳","team":"味全龍","PA":195,"display":{"AVG":0.268,"OBP":0.332,"SLG":0.305,"OPS":0.637,"HR":0,"RBI":15,"SB":0},"raw":{"ISO":0.037,"K%":18.4,"BB%":8.4,"Barrel%":0.0,"LA":1.4},"pr":{"ISO":6.3,"K%":74.6,"BB%":62.0,"Barrel%":3.5,"LA":0.0}},
+{"name":"張皓崴","team":"統一7-ELEVEn獅","PA":208,"display":{"AVG":0.285,"OBP":0.338,"SLG":0.349,"OPS":0.687,"HR":0,"RBI":12,"SB":10},"raw":{"ISO":0.065,"K%":13.9,"BB%":7.7,"Barrel%":0.0,"LA":5.2},"pr":{"ISO":33.8,"K%":36.6,"BB%":49.3,"Barrel%":3.5,"LA":11.3}},
+{"name":"池恩齊","team":"富邦悍將","PA":209,"display":{"AVG":0.222,"OBP":0.264,"SLG":0.259,"OPS":0.523,"HR":0,"RBI":11,"SB":9},"raw":{"ISO":0.037,"K%":27.3,"BB%":5.3,"Barrel%":1.4,"LA":1.8},"pr":{"ISO":6.3,"K%":98.6,"BB%":19.0,"Barrel%":35.9,"LA":1.4}},
+{"name":"林泓弦","team":"統一7-ELEVEn獅","PA":210,"display":{"AVG":0.23,"OBP":0.278,"SLG":0.277,"OPS":0.555,"HR":0,"RBI":10,"SB":1},"raw":{"ISO":0.047,"K%":11.4,"BB%":5.2,"Barrel%":0.0,"LA":3.2},"pr":{"ISO":13.4,"K%":26.1,"BB%":16.9,"Barrel%":3.5,"LA":5.6}},
+{"name":"紀慶然","team":"台鋼雄鷹","PA":279,"display":{"AVG":0.25,"OBP":0.305,"SLG":0.29,"OPS":0.595,"HR":0,"RBI":18,"SB":7},"raw":{"ISO":0.04,"K%":16.1,"BB%":7.2,"Barrel%":0.0,"LA":9.0},"pr":{"ISO":8.5,"K%":59.9,"BB%":45.1,"Barrel%":3.5,"LA":29.6}},
+{"name":"林澤彬","team":"富邦悍將","PA":380,"display":{"AVG":0.311,"OBP":0.371,"SLG":0.369,"OPS":0.74,"HR":0,"RBI":41,"SB":6},"raw":{"ISO":0.058,"K%":8.2,"BB%":8.4,"Barrel%":0.3,"LA":4.3},"pr":{"ISO":28.2,"K%":1.4,"BB%":62.0,"Barrel%":9.2,"LA":7.7}},
+{"name":"吳念庭","team":"台鋼雄鷹","PA":406,"display":{"AVG":0.258,"OBP":0.348,"SLG":0.307,"OPS":0.655,"HR":0,"RBI":45,"SB":3},"raw":{"ISO":0.049,"K%":9.9,"BB%":12.3,"Barrel%":0.3,"LA":9.3},"pr":{"ISO":15.5,"K%":12.7,"BB%":95.8,"Barrel%":9.2,"LA":34.5}}
+],
+"pitchers":[
+{"name":"陳冠偉","team":"味全龍","role":"後援","G":56,"GS":0,"IP":52.333,"display":{"ERA":2.06,"WHIP":1.07,"W":4,"L":4,"SV":5,"HLD":23},"raw":{"Velo":143.4,"K%":14.42,"BB%":6.25,"GO/AO":0.545},"pr":{"Velo":35.9,"K%":31.2,"BB%":29.7,"GO/AO":4.7}},
+{"name":"林凱威","team":"味全龍","role":"後援","G":56,"GS":0,"IP":53.667,"display":{"ERA":2.85,"WHIP":1.23,"W":8,"L":4,"SV":30,"HLD":3},"raw":{"Velo":152.2,"K%":15.93,"BB%":7.08,"GO/AO":1.302},"pr":{"Velo":100.0,"K%":50.0,"BB%":38.3,"GO/AO":85.9}},
+{"name":"陳冠宇","team":"樂天桃猿","role":"後援","G":56,"GS":0,"IP":53.667,"display":{"ERA":2.18,"WHIP":1.1,"W":3,"L":3,"SV":17,"HLD":18},"raw":{"Velo":146.0,"K%":27.06,"BB%":9.17,"GO/AO":0.724},"pr":{"Velo":69.5,"K%":96.9,"BB%":62.5,"GO/AO":25.0}},
+{"name":"張奕","team":"富邦悍將","role":"後援","G":54,"GS":0,"IP":54.0,"display":{"ERA":1.67,"WHIP":1.26,"W":7,"L":3,"SV":6,"HLD":23},"raw":{"Velo":150.0,"K%":18.02,"BB%":7.66,"GO/AO":0.915},"pr":{"Velo":95.3,"K%":64.1,"BB%":46.9,"GO/AO":56.2}},
+{"name":"蘇俊璋","team":"樂天桃猿","role":"後援","G":54,"GS":0,"IP":43.667,"display":{"ERA":2.06,"WHIP":1.05,"W":3,"L":1,"SV":0,"HLD":23},"raw":{"Velo":144.7,"K%":21.14,"BB%":5.71,"GO/AO":0.878},"pr":{"Velo":52.3,"K%":86.7,"BB%":21.9,"GO/AO":46.9}},
+{"name":"陳柏清","team":"台鋼雄鷹","role":"後援","G":54,"GS":0,"IP":52.333,"display":{"ERA":4.13,"WHIP":1.41,"W":0,"L":5,"SV":2,"HLD":24},"raw":{"Velo":143.5,"K%":13.97,"BB%":7.86,"GO/AO":1.123},"pr":{"Velo":38.3,"K%":29.7,"BB%":48.4,"GO/AO":76.6}},
+{"name":"廖任磊","team":"富邦悍將","role":"後援","G":53,"GS":0,"IP":43.667,"display":{"ERA":5.36,"WHIP":1.63,"W":1,"L":5,"SV":0,"HLD":10},"raw":{"Velo":147.8,"K%":7.5,"BB%":12.5,"GO/AO":0.897},"pr":{"Velo":86.7,"K%":0.0,"BB%":95.3,"GO/AO":53.1}},
+{"name":"林子昱","team":"味全龍","role":"後援","G":53,"GS":0,"IP":49.333,"display":{"ERA":1.82,"WHIP":1.09,"W":3,"L":4,"SV":3,"HLD":16},"raw":{"Velo":142.9,"K%":12.56,"BB%":5.03,"GO/AO":0.625},"pr":{"Velo":31.2,"K%":20.3,"BB%":15.6,"GO/AO":14.8}},
+{"name":"髙塩將樹","team":"統一7-ELEVEn獅","role":"後援","G":52,"GS":0,"IP":47.333,"display":{"ERA":2.09,"WHIP":1.16,"W":4,"L":2,"SV":0,"HLD":25},"raw":{"Velo":142.4,"K%":14.8,"BB%":8.16,"GO/AO":0.682},"pr":{"Velo":25.0,"K%":39.1,"BB%":53.1,"GO/AO":21.9}},
+{"name":"鍾允華","team":"統一7-ELEVEn獅","role":"後援","G":52,"GS":0,"IP":50.667,"display":{"ERA":2.66,"WHIP":1.32,"W":0,"L":3,"SV":33,"HLD":1},"raw":{"Velo":150.1,"K%":20.74,"BB%":9.68,"GO/AO":0.694},"pr":{"Velo":96.9,"K%":84.4,"BB%":67.2,"GO/AO":23.4}},
+{"name":"呂彥青","team":"中信兄弟","role":"後援","G":50,"GS":0,"IP":48.667,"display":{"ERA":2.4,"WHIP":0.88,"W":8,"L":2,"SV":7,"HLD":20},"raw":{"Velo":141.7,"K%":20.43,"BB%":4.84,"GO/AO":0.891},"pr":{"Velo":20.3,"K%":79.7,"BB%":14.1,"GO/AO":50.0}},
+{"name":"陳琥","team":"中信兄弟","role":"後援","G":50,"GS":0,"IP":52.0,"display":{"ERA":2.94,"WHIP":1.44,"W":0,"L":0,"SV":0,"HLD":6},"raw":{"Velo":146.9,"K%":16.23,"BB%":10.96,"GO/AO":0.606},"pr":{"Velo":79.7,"K%":55.5,"BB%":86.7,"GO/AO":10.9}},
+{"name":"曾峻岳","team":"富邦悍將","role":"後援","G":48,"GS":0,"IP":51.667,"display":{"ERA":1.57,"WHIP":0.95,"W":5,"L":3,"SV":25,"HLD":7},"raw":{"Velo":151.4,"K%":32.66,"BB%":6.53,"GO/AO":0.809},"pr":{"Velo":98.4,"K%":100.0,"BB%":32.8,"GO/AO":35.9}},
+{"name":"江忠城","team":"中信兄弟","role":"後援","G":47,"GS":0,"IP":42.333,"display":{"ERA":2.34,"WHIP":1.18,"W":0,"L":4,"SV":0,"HLD":14},"raw":{"Velo":144.8,"K%":15.34,"BB%":10.23,"GO/AO":1.462},"pr":{"Velo":54.7,"K%":42.2,"BB%":79.7,"GO/AO":87.5}},
+{"name":"蔡齊哲","team":"中信兄弟","role":"後援","G":46,"GS":0,"IP":35.0,"display":{"ERA":2.83,"WHIP":1.23,"W":4,"L":2,"SV":1,"HLD":12},"raw":{"Velo":140.2,"K%":10.96,"BB%":10.96,"GO/AO":0.755},"pr":{"Velo":12.5,"K%":12.5,"BB%":86.7,"GO/AO":26.6}},
+{"name":"王志煊","team":"樂天桃猿","role":"後援","G":45,"GS":0,"IP":25.0,"display":{"ERA":2.88,"WHIP":1.44,"W":1,"L":1,"SV":0,"HLD":13},"raw":{"Velo":133.4,"K%":16.67,"BB%":12.04,"GO/AO":0.405},"pr":{"Velo":3.1,"K%":59.4,"BB%":90.6,"GO/AO":1.6}},
+{"name":"莊昕諺","team":"樂天桃猿","role":"後援","G":44,"GS":0,"IP":44.0,"display":{"ERA":2.05,"WHIP":1.23,"W":4,"L":4,"SV":3,"HLD":11},"raw":{"Velo":146.6,"K%":13.59,"BB%":9.78,"GO/AO":0.807},"pr":{"Velo":76.6,"K%":26.6,"BB%":70.3,"GO/AO":34.4}},
+{"name":"林栚呈","team":"富邦悍將","role":"後援","G":44,"GS":0,"IP":42.0,"display":{"ERA":3.43,"WHIP":1.38,"W":1,"L":1,"SV":0,"HLD":8},"raw":{"Velo":141.0,"K%":9.84,"BB%":10.38,"GO/AO":0.576},"pr":{"Velo":17.2,"K%":6.2,"BB%":81.2,"GO/AO":9.4}},
+{"name":"邱浩鈞","team":"統一7-ELEVEn獅","role":"後援","G":43,"GS":0,"IP":37.0,"display":{"ERA":2.68,"WHIP":1.49,"W":3,"L":3,"SV":0,"HLD":14},"raw":{"Velo":141.3,"K%":14.46,"BB%":13.86,"GO/AO":0.433},"pr":{"Velo":18.8,"K%":32.8,"BB%":98.4,"GO/AO":3.1}},
+{"name":"許峻暘","team":"台鋼雄鷹","role":"後援","G":43,"GS":0,"IP":36.0,"display":{"ERA":2.0,"WHIP":1.14,"W":0,"L":3,"SV":0,"HLD":7},"raw":{"Velo":143.8,"K%":22.82,"BB%":8.72,"GO/AO":1.281},"pr":{"Velo":40.6,"K%":90.6,"BB%":56.2,"GO/AO":84.4}},
+{"name":"黃群","team":"台鋼雄鷹","role":"後援","G":41,"GS":0,"IP":39.0,"display":{"ERA":3.0,"WHIP":1.26,"W":5,"L":2,"SV":7,"HLD":10},"raw":{"Velo":143.1,"K%":20.48,"BB%":12.05,"GO/AO":1.103},"pr":{"Velo":32.8,"K%":81.2,"BB%":92.2,"GO/AO":75.0}},
+{"name":"賴鴻誠","team":"富邦悍將","role":"後援","G":41,"GS":0,"IP":34.0,"display":{"ERA":5.29,"WHIP":1.53,"W":1,"L":1,"SV":0,"HLD":4},"raw":{"Velo":142.4,"K%":9.27,"BB%":9.27,"GO/AO":0.826},"pr":{"Velo":25.0,"K%":4.7,"BB%":64.1,"GO/AO":42.2}},
+{"name":"李超","team":"味全龍","role":"後援","G":39,"GS":0,"IP":37.333,"display":{"ERA":1.69,"WHIP":1.04,"W":3,"L":1,"SV":1,"HLD":10},"raw":{"Velo":146.5,"K%":17.69,"BB%":8.84,"GO/AO":0.976},"pr":{"Velo":75.0,"K%":62.5,"BB%":59.4,"GO/AO":59.4}},
+{"name":"吳承諭","team":"統一7-ELEVEn獅","role":"後援","G":39,"GS":0,"IP":40.0,"display":{"ERA":2.03,"WHIP":1.1,"W":4,"L":1,"SV":0,"HLD":6},"raw":{"Velo":135.9,"K%":8.59,"BB%":5.52,"GO/AO":0.625},"pr":{"Velo":7.8,"K%":1.6,"BB%":18.8,"GO/AO":14.8}},
+{"name":"李吳永勤","team":"富邦悍將","role":"後援","G":38,"GS":0,"IP":28.667,"display":{"ERA":5.34,"WHIP":1.71,"W":0,"L":1,"SV":0,"HLD":6},"raw":{"Velo":137.8,"K%":12.32,"BB%":12.32,"GO/AO":1.161},"pr":{"Velo":9.4,"K%":18.0,"BB%":93.8,"GO/AO":79.7}},
+{"name":"李建勳","team":"富邦悍將","role":"後援","G":37,"GS":0,"IP":32.667,"display":{"ERA":4.96,"WHIP":1.56,"W":0,"L":1,"SV":0,"HLD":2},"raw":{"Velo":147.9,"K%":19.33,"BB%":10.0,"GO/AO":1.029},"pr":{"Velo":89.8,"K%":73.4,"BB%":73.4,"GO/AO":68.8}},
+{"name":"陳宇宏","team":"台鋼雄鷹","role":"後援","G":37,"GS":1,"IP":53.333,"display":{"ERA":4.89,"WHIP":1.58,"W":2,"L":1,"SV":0,"HLD":2},"raw":{"Velo":131.3,"K%":10.74,"BB%":7.44,"GO/AO":0.897},"pr":{"Velo":0.8,"K%":10.9,"BB%":43.8,"GO/AO":53.1}},
+{"name":"李振昌","team":"中信兄弟","role":"後援","G":35,"GS":0,"IP":32.333,"display":{"ERA":4.18,"WHIP":1.24,"W":0,"L":5,"SV":15,"HLD":7},"raw":{"Velo":144.0,"K%":16.18,"BB%":7.35,"GO/AO":0.34},"pr":{"Velo":45.3,"K%":53.1,"BB%":40.6,"GO/AO":0.0}},
+{"name":"林鋅杰","team":"味全龍","role":"後援","G":34,"GS":0,"IP":30.667,"display":{"ERA":3.82,"WHIP":1.57,"W":3,"L":1,"SV":1,"HLD":9},"raw":{"Velo":143.9,"K%":10.45,"BB%":15.67,"GO/AO":0.769},"pr":{"Velo":43.0,"K%":7.8,"BB%":100.0,"GO/AO":29.7}},
+{"name":"李其峰","team":"統一7-ELEVEn獅","role":"後援","G":34,"GS":0,"IP":32.0,"display":{"ERA":3.09,"WHIP":1.63,"W":2,"L":0,"SV":0,"HLD":6},"raw":{"Velo":144.5,"K%":14.77,"BB%":10.07,"GO/AO":0.574},"pr":{"Velo":50.0,"K%":37.5,"BB%":76.6,"GO/AO":7.8}},
+{"name":"李軍","team":"統一7-ELEVEn獅","role":"後援","G":34,"GS":0,"IP":28.0,"display":{"ERA":3.54,"WHIP":1.32,"W":1,"L":1,"SV":0,"HLD":6},"raw":{"Velo":147.4,"K%":21.14,"BB%":10.57,"GO/AO":0.897},"pr":{"Velo":82.8,"K%":86.7,"BB%":82.8,"GO/AO":53.1}},
+{"name":"舒治浩","team":"樂天桃猿","role":"後援","G":34,"GS":0,"IP":33.667,"display":{"ERA":4.54,"WHIP":1.34,"W":2,"L":2,"SV":0,"HLD":5},"raw":{"Velo":147.6,"K%":13.29,"BB%":13.29,"GO/AO":0.833},"pr":{"Velo":84.4,"K%":25.0,"BB%":96.9,"GO/AO":43.8}},
+{"name":"李欣穎","team":"台鋼雄鷹","role":"後援","G":32,"GS":0,"IP":30.0,"display":{"ERA":2.7,"WHIP":1.37,"W":0,"L":2,"SV":1,"HLD":11},"raw":{"Velo":143.9,"K%":28.68,"BB%":8.09,"GO/AO":1.75},"pr":{"Velo":43.0,"K%":98.4,"BB%":51.6,"GO/AO":98.4}},
+{"name":"林子崴","team":"樂天桃猿","role":"搖擺人","G":31,"GS":9,"IP":86.333,"display":{"ERA":2.08,"WHIP":1.24,"W":6,"L":2,"SV":1,"HLD":8},"raw":{"Velo":144.7,"K%":12.32,"BB%":5.6,"GO/AO":1.463},"pr":{"Velo":52.3,"K%":18.0,"BB%":20.3,"GO/AO":89.1}},
+{"name":"鄭澔","team":"統一7-ELEVEn獅","role":"後援","G":31,"GS":0,"IP":26.667,"display":{"ERA":4.72,"WHIP":1.31,"W":1,"L":1,"SV":0,"HLD":6},"raw":{"Velo":140.6,"K%":22.32,"BB%":11.61,"GO/AO":1.04},"pr":{"Velo":15.6,"K%":89.1,"BB%":89.1,"GO/AO":73.4}},
+{"name":"施子謙","team":"台鋼雄鷹","role":"後援","G":30,"GS":0,"IP":25.0,"display":{"ERA":3.24,"WHIP":1.28,"W":2,"L":2,"SV":0,"HLD":9},"raw":{"Velo":143.3,"K%":11.21,"BB%":7.48,"GO/AO":1.033},"pr":{"Velo":34.4,"K%":14.1,"BB%":45.3,"GO/AO":70.3}},
+{"name":"勝騎士","team":"中信兄弟","role":"先發","G":25,"GS":24,"IP":154.667,"display":{"ERA":3.08,"WHIP":1.05,"W":11,"L":7,"SV":0,"HLD":0},"raw":{"Velo":145.8,"K%":20.16,"BB%":2.9,"GO/AO":0.818},"pr":{"Velo":67.2,"K%":76.6,"BB%":3.1,"GO/AO":39.1}},
+{"name":"羅戈","team":"中信兄弟","role":"先發","G":25,"GS":25,"IP":154.0,"display":{"ERA":3.33,"WHIP":1.18,"W":12,"L":9,"SV":0,"HLD":0},"raw":{"Velo":147.9,"K%":16.48,"BB%":5.86,"GO/AO":0.799},"pr":{"Velo":89.8,"K%":57.8,"BB%":25.0,"GO/AO":31.2}},
+{"name":"魔力藍","team":"富邦悍將","role":"先發","G":24,"GS":24,"IP":139.0,"display":{"ERA":3.04,"WHIP":1.26,"W":9,"L":9,"SV":0,"HLD":0},"raw":{"Velo":144.1,"K%":15.58,"BB%":5.82,"GO/AO":0.975},"pr":{"Velo":46.9,"K%":45.3,"BB%":23.4,"GO/AO":57.8}},
+{"name":"鋼龍","team":"味全龍","role":"先發","G":23,"GS":23,"IP":140.333,"display":{"ERA":2.31,"WHIP":1.2,"W":7,"L":9,"SV":0,"HLD":0},"raw":{"Velo":145.0,"K%":19.27,"BB%":6.94,"GO/AO":0.98},"pr":{"Velo":56.2,"K%":71.9,"BB%":35.9,"GO/AO":62.5}},
+{"name":"布雷克","team":"統一7-ELEVEn獅","role":"先發","G":23,"GS":23,"IP":150.667,"display":{"ERA":1.61,"WHIP":0.98,"W":9,"L":7,"SV":0,"HLD":0},"raw":{"Velo":142.6,"K%":16.23,"BB%":2.76,"GO/AO":0.822},"pr":{"Velo":28.1,"K%":55.5,"BB%":1.6,"GO/AO":40.6}},
+{"name":"艾速特","team":"台鋼雄鷹","role":"先發","G":23,"GS":23,"IP":136.667,"display":{"ERA":2.63,"WHIP":1.12,"W":9,"L":10,"SV":0,"HLD":0},"raw":{"Velo":146.1,"K%":20.35,"BB%":7.43,"GO/AO":0.979},"pr":{"Velo":71.9,"K%":78.1,"BB%":42.2,"GO/AO":60.9}},
+{"name":"艾菩樂","team":"樂天桃猿","role":"先發","G":23,"GS":23,"IP":150.667,"display":{"ERA":2.81,"WHIP":1.13,"W":6,"L":9,"SV":0,"HLD":0},"raw":{"Velo":145.2,"K%":17.39,"BB%":4.19,"GO/AO":0.806},"pr":{"Velo":57.8,"K%":60.9,"BB%":10.9,"GO/AO":32.8}},
+{"name":"曾家輝","team":"樂天桃猿","role":"先發","G":22,"GS":22,"IP":120.667,"display":{"ERA":2.69,"WHIP":1.12,"W":7,"L":2,"SV":0,"HLD":0},"raw":{"Velo":144.4,"K%":15.69,"BB%":6.84,"GO/AO":0.642},"pr":{"Velo":48.4,"K%":46.9,"BB%":34.4,"GO/AO":19.5}},
+{"name":"獅帝芬","team":"統一7-ELEVEn獅","role":"先發","G":22,"GS":22,"IP":130.0,"display":{"ERA":2.77,"WHIP":1.25,"W":8,"L":8,"SV":0,"HLD":0},"raw":{"Velo":145.7,"K%":15.53,"BB%":8.69,"GO/AO":1.028},"pr":{"Velo":64.1,"K%":43.8,"BB%":54.7,"GO/AO":67.2}},
+{"name":"喬登","team":"統一7-ELEVEn獅","role":"先發","G":21,"GS":21,"IP":115.0,"display":{"ERA":1.64,"WHIP":1.01,"W":8,"L":4,"SV":0,"HLD":0},"raw":{"Velo":149.7,"K%":26.22,"BB%":10.22,"GO/AO":0.991},"pr":{"Velo":93.8,"K%":95.3,"BB%":78.1,"GO/AO":65.6}},
+{"name":"梅賽鍶","team":"味全龍","role":"先發","G":21,"GS":21,"IP":135.667,"display":{"ERA":1.79,"WHIP":1.04,"W":10,"L":5,"SV":0,"HLD":0},"raw":{"Velo":140.1,"K%":15.28,"BB%":3.96,"GO/AO":1.184},"pr":{"Velo":10.9,"K%":40.6,"BB%":7.8,"GO/AO":82.8}},
+{"name":"蔣銲","team":"味全龍","role":"先發","G":21,"GS":21,"IP":133.333,"display":{"ERA":1.49,"WHIP":0.98,"W":9,"L":2,"SV":0,"HLD":0},"raw":{"Velo":147.3,"K%":25.52,"BB%":8.07,"GO/AO":1.131},"pr":{"Velo":81.2,"K%":93.8,"BB%":50.0,"GO/AO":78.1}},
+{"name":"李東洺","team":"富邦悍將","role":"先發","G":21,"GS":21,"IP":110.333,"display":{"ERA":2.53,"WHIP":1.28,"W":10,"L":4,"SV":0,"HLD":0},"raw":{"Velo":145.6,"K%":12.63,"BB%":9.89,"GO/AO":0.607},"pr":{"Velo":60.9,"K%":21.9,"BB%":71.9,"GO/AO":12.5}},
+{"name":"鈴木駿輔","team":"富邦悍將","role":"先發","G":20,"GS":20,"IP":121.0,"display":{"ERA":2.31,"WHIP":1.13,"W":9,"L":6,"SV":0,"HLD":0},"raw":{"Velo":147.8,"K%":20.49,"BB%":6.09,"GO/AO":1.541},"pr":{"Velo":86.7,"K%":82.8,"BB%":28.1,"GO/AO":95.3}},
+{"name":"伍立辰","team":"中信兄弟","role":"搖擺人","G":20,"GS":12,"IP":64.333,"display":{"ERA":5.04,"WHIP":1.52,"W":4,"L":4,"SV":0,"HLD":2},"raw":{"Velo":142.8,"K%":14.53,"BB%":9.69,"GO/AO":0.815},"pr":{"Velo":29.7,"K%":35.9,"BB%":68.8,"GO/AO":37.5}},
+{"name":"黃子鵬","team":"台鋼雄鷹","role":"先發","G":20,"GS":20,"IP":126.667,"display":{"ERA":2.2,"WHIP":0.92,"W":7,"L":6,"SV":0,"HLD":0},"raw":{"Velo":131.3,"K%":13.25,"BB%":3.41,"GO/AO":0.848},"pr":{"Velo":0.8,"K%":23.4,"BB%":4.7,"GO/AO":45.3}},
+{"name":"江承諺","team":"台鋼雄鷹","role":"先發","G":20,"GS":20,"IP":109.0,"display":{"ERA":3.3,"WHIP":1.32,"W":4,"L":5,"SV":0,"HLD":0},"raw":{"Velo":134.3,"K%":10.73,"BB%":6.01,"GO/AO":0.642},"pr":{"Velo":4.7,"K%":9.4,"BB%":26.6,"GO/AO":19.5}},
+{"name":"威能帝","team":"樂天桃猿","role":"先發","G":19,"GS":19,"IP":114.333,"display":{"ERA":2.6,"WHIP":1.02,"W":8,"L":7,"SV":0,"HLD":0},"raw":{"Velo":149.0,"K%":23.36,"BB%":3.49,"GO/AO":0.565},"pr":{"Velo":92.2,"K%":92.2,"BB%":6.2,"GO/AO":6.2}},
+{"name":"伍鐸","team":"味全龍","role":"先發","G":19,"GS":18,"IP":114.0,"display":{"ERA":3.87,"WHIP":1.26,"W":3,"L":8,"SV":1,"HLD":0},"raw":{"Velo":135.0,"K%":9.03,"BB%":5.46,"GO/AO":1.174},"pr":{"Velo":6.2,"K%":3.1,"BB%":17.2,"GO/AO":81.2}},
+{"name":"魔神龍","team":"味全龍","role":"先發","G":19,"GS":19,"IP":109.333,"display":{"ERA":2.88,"WHIP":1.32,"W":5,"L":7,"SV":0,"HLD":0},"raw":{"Velo":140.3,"K%":14.47,"BB%":6.38,"GO/AO":0.631},"pr":{"Velo":14.1,"K%":34.4,"BB%":31.2,"GO/AO":17.2}},
+{"name":"江國豪","team":"富邦悍將","role":"搖擺人","G":18,"GS":10,"IP":64.0,"display":{"ERA":2.81,"WHIP":1.47,"W":4,"L":3,"SV":0,"HLD":1},"raw":{"Velo":142.4,"K%":12.01,"BB%":10.95,"GO/AO":0.986},"pr":{"Velo":25.0,"K%":15.6,"BB%":84.4,"GO/AO":64.1}},
+{"name":"坎南","team":"台鋼雄鷹","role":"先發","G":18,"GS":18,"IP":117.333,"display":{"ERA":2.84,"WHIP":1.13,"W":8,"L":6,"SV":0,"HLD":0},"raw":{"Velo":145.3,"K%":15.73,"BB%":4.35,"GO/AO":1.587},"pr":{"Velo":59.4,"K%":48.4,"BB%":12.5,"GO/AO":96.9}},
+{"name":"#後勁","team":"台鋼雄鷹","role":"先發","G":18,"GS":18,"IP":95.0,"display":{"ERA":4.74,"WHIP":1.55,"W":5,"L":9,"SV":0,"HLD":0},"raw":{"Velo":145.7,"K%":16.08,"BB%":10.02,"GO/AO":1.506},"pr":{"Velo":64.1,"K%":51.6,"BB%":75.0,"GO/AO":93.8}},
+{"name":"陳克羿","team":"樂天桃猿","role":"先發","G":17,"GS":16,"IP":89.0,"display":{"ERA":4.25,"WHIP":1.44,"W":5,"L":8,"SV":0,"HLD":0},"raw":{"Velo":146.8,"K%":19.12,"BB%":8.79,"GO/AO":1.902},"pr":{"Velo":78.1,"K%":70.3,"BB%":57.8,"GO/AO":100.0}},
+{"name":"鄭浩均","team":"中信兄弟","role":"先發","G":17,"GS":17,"IP":93.0,"display":{"ERA":5.61,"WHIP":1.33,"W":5,"L":7,"SV":0,"HLD":0},"raw":{"Velo":146.0,"K%":18.25,"BB%":9.0,"GO/AO":0.764},"pr":{"Velo":69.5,"K%":65.6,"BB%":60.9,"GO/AO":28.1}},
+{"name":"林詔恩","team":"統一7-ELEVEn獅","role":"先發","G":16,"GS":13,"IP":75.0,"display":{"ERA":3.0,"WHIP":1.25,"W":6,"L":4,"SV":0,"HLD":0},"raw":{"Velo":142.3,"K%":19.09,"BB%":9.39,"GO/AO":1.476},"pr":{"Velo":21.9,"K%":68.8,"BB%":65.6,"GO/AO":92.2}},
+{"name":"德保拉","team":"中信兄弟","role":"先發","G":16,"GS":15,"IP":99.667,"display":{"ERA":3.16,"WHIP":1.07,"W":9,"L":5,"SV":0,"HLD":0},"raw":{"Velo":143.5,"K%":13.68,"BB%":2.49,"GO/AO":1.035},"pr":{"Velo":38.3,"K%":28.1,"BB%":0.0,"GO/AO":71.9}},
+{"name":"銳力獅","team":"統一7-ELEVEn獅","role":"先發","G":15,"GS":15,"IP":84.667,"display":{"ERA":2.66,"WHIP":1.06,"W":5,"L":4,"SV":0,"HLD":0},"raw":{"Velo":145.7,"K%":18.34,"BB%":4.14,"GO/AO":0.888},"pr":{"Velo":64.1,"K%":67.2,"BB%":9.4,"GO/AO":48.4}},
+{"name":"#魔爾曼","team":"樂天桃猿","role":"先發","G":15,"GS":14,"IP":86.667,"display":{"ERA":2.7,"WHIP":1.22,"W":5,"L":6,"SV":0,"HLD":0},"raw":{"Velo":146.3,"K%":19.35,"BB%":7.08,"GO/AO":1.468},"pr":{"Velo":73.4,"K%":75.0,"BB%":38.3,"GO/AO":90.6}}
+]
+};
+// ===== 資料結束 =====
+
+const TEAMS = {
+  '中信兄弟':       { short: '中信兄弟', color: '#f5c400', ink: '#1c1b19' },
+  '統一7-ELEVEn獅': { short: '統一獅',   color: '#f26b21', ink: '#ffffff' },
+  '樂天桃猿':       { short: '樂天桃猿', color: '#8a1538', ink: '#ffffff' },
+  '富邦悍將':       { short: '富邦悍將', color: '#1d4e9e', ink: '#ffffff' },
+  '味全龍':         { short: '味全龍',   color: '#d7141a', ink: '#ffffff' },
+  '台鋼雄鷹':       { short: '台鋼雄鷹', color: '#00594c', ink: '#ffffff' },
+};
+const TEAM_FALLBACK = { color: '#555555', ink: '#ffffff' };
+
+const TYPE_LABEL = { batters: '打者', pitchers: '投手' };
+const PICK = 3;            // 海選、複選每輪選幾人
+const GROUPS = 3;          // 複選組數
+const RANK_STEPS = 2 + 6;  // 排名：分段 2 步 + 組內排序 6 步
+
+// ---------- 小工具 ----------
+const $ = (id) => document.getElementById(id);
+function shuffle(arr) {
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const displayName = (p) => p.name.replace(/^#/, '');
+const team = (p) => TEAMS[p.team] || { short: p.team, ...TEAM_FALLBACK };
+const fmtRate = (v) => v.toFixed(3).replace(/^0/, '');  // .294
+const fmt2 = (v) => v.toFixed(2);
+
+// 海選分輪：每輪 9 人，餘數由最後幾輪各多 1 人（投手 65 人 → 5 輪 9 人、2 輪 10 人）
+function roundSizes(n) {
+  const r = Math.floor(n / 9);
+  const sizes = Array(r).fill(9);
+  for (let i = 0; i < n - 9 * r; i++) sizes[r - 1 - (i % r)]++;
+  return sizes;
+}
+function totalSteps(type) {
+  return roundSizes(DATA[type].length).length + GROUPS + RANK_STEPS;
+}
+
+// ---------- 卡片 ----------
+function cardStats(p, type) {
+  const d = p.display;
+  if (type === 'batters') {
+    return [['打擊率', fmtRate(d.AVG)], ['全壘打', d.HR], ['OPS', fmtRate(d.OPS)]];
+  }
+  return [['防禦率', fmt2(d.ERA)], ['WHIP', fmt2(d.WHIP)]];
+}
+
+function cardHTML(idx, type, order) {
+  const p = DATA[type][idx];
+  const t = team(p);
+  const name = displayName(p);
+  const tag = type === 'pitchers'
+    ? `<span class="tag${t.ink === '#ffffff' ? '' : ' dark'}">${esc(p.role)}</span>` : '';
+  const items = cardStats(p, type);
+  const stats = items.map(([k, v]) => `<div><dt>${k}</dt><dd>${esc(v)}</dd></div>`).join('');
+  return `<button class="card${order ? ' sel' : ''}" data-idx="${idx}" aria-pressed="${!!order}"
+      style="--team:${t.color};--team-ink:${t.ink}">
+    <div class="band"><span>${esc(t.short)}</span>${tag}</div>
+    <div class="name${name.length > 4 ? ' long' : ''}">${esc(name)}</div>
+    <dl class="stats" style="--cols:${items.length}">${stats}</dl>
+    <span class="check">${order || ''}</span>
+  </button>`;
+}
+
+// ---------- 遊戲狀態 ----------
+// game 只存球員在 DATA[type] 中的索引，方便用 JSON 複製做「上一步」
+let game = null;
+let history = [];
+let selected = [];
+
+function newGame(type) {
+  const pool = shuffle(DATA[type].map((_, i) => i));
+  const rounds = [];
+  let k = 0;
+  for (const size of roundSizes(pool.length)) { rounds.push(pool.slice(k, k + size)); k += size; }
+  game = {
+    type, total: totalSteps(type), step: 1,
+    stage: 'audition',
+    rounds, r: 0, finalists: [],   // 海選：每輪入圍的 3 人
+    groups: [], g: 0, nine: [],    // 複選
+    rest: [], tiers: [],           // 排名：分段
+    t: 0, left: [], ranked: [],    // 排名：組內排序
+  };
+  history = [];
+  selected = [];
+  show('game');
+  render();
+}
+
+const pickTitle = (need) => need === 1 ? '選出你最喜歡的選手' : `選出你最喜歡的 ${need} 位選手`;
+
+// 目前這一步要顯示的內容
+function currentStep() {
+  const g = game;
+  switch (g.stage) {
+    case 'audition': {
+      const c = g.rounds[g.r];
+      return { phase: `海選 第 ${g.r + 1} 輪`, title: pickTitle(PICK), cands: c, need: PICK };
+    }
+    case 'semi': {
+      const c = g.groups[g.g];
+      return { phase: `複選 第 ${g.g + 1} 組`, title: pickTitle(PICK), cands: c, need: PICK };
+    }
+    case 'tier':
+      return { phase: '排名', title: pickTitle(3), cands: g.rest, need: 3 };
+    case 'order':
+      return { phase: '排名', title: pickTitle(1), cands: g.left, need: 1 };
+  }
+}
+
+function submit(sel) {
+  const g = game;
+  history.push(JSON.stringify(g));
+  switch (g.stage) {
+    case 'audition':
+      g.finalists.push(sel);
+      if (++g.r === g.rounds.length) {
+        // 複選分組：每輪入圍的 3 人各分到不同組，避免同輪入圍者擠在同一組
+        g.groups = Array.from({ length: GROUPS }, () => []);
+        for (const trio of g.finalists) shuffle(trio).forEach((idx, i) => g.groups[i % GROUPS].push(idx));
+        g.groups = g.groups.map(shuffle);
+        g.stage = 'semi';
+      }
+      break;
+    case 'semi':
+      g.nine.push(...sel);
+      if (++g.g === GROUPS) { g.rest = shuffle(g.nine); g.stage = 'tier'; }
+      break;
+    case 'tier':
+      g.tiers.push(sel);
+      g.rest = g.rest.filter((i) => !sel.includes(i));
+      if (g.tiers.length === 2) {
+        g.tiers.push(g.rest);
+        g.stage = 'order';
+        g.left = g.tiers[0].slice();
+      }
+      break;
+    case 'order':
+      g.ranked.push(sel[0]);
+      g.left = g.left.filter((i) => i !== sel[0]);
+      if (g.left.length === 1) {
+        g.ranked.push(g.left[0]);
+        if (++g.t === g.tiers.length) g.stage = 'result';
+        else g.left = g.tiers[g.t].slice();
+      }
+      break;
+  }
+  g.step++;
+  selected = [];
+  render();
+  window.scrollTo({ top: 0 });
+}
+
+function back() {
+  if (!history.length) return;
+  game = JSON.parse(history.pop());
+  selected = [];
+  render();
+}
+
+// ---------- 畫面 ----------
+function show(view) {
+  $('home').hidden = view !== 'home';
+  $('game').hidden = view !== 'game';
+}
+
+function renderProgress(phaseText) {
+  const g = game;
+  const done = g.stage === 'result';
+  const stepNo = Math.min(g.step, g.total);
+  $('phase').innerHTML = done
+    ? `完成<span class="sep">｜</span><span class="count">${g.total} / ${g.total} 步</span>`
+    : `${esc(phaseText)}<span class="sep">｜</span><span class="count">第 ${stepNo} / ${g.total} 步</span>`;
+  $('bar-fill').style.width = `${((done ? g.total : g.step - 1) / g.total) * 100}%`;
+
+  const order = ['audition', 'semi', 'rank', 'result'];
+  const labels = ['海選', '複選', '排名', '結果'];
+  const cur = { audition: 0, semi: 1, tier: 2, order: 2, result: 3 }[g.stage];
+  $('stages').innerHTML = order.map((_, i) =>
+    `<span class="${i === cur ? 'on' : i < cur ? 'done' : ''}">${labels[i]}</span>`).join('');
+  $('btn-back').disabled = history.length === 0;
+}
+
+function render() {
+  if (game.stage === 'result') return renderResult();
+  const s = currentStep();
+  renderProgress(s.phase);
+  $('pick').hidden = false;
+  $('result').hidden = true;
+  $('actionbar').hidden = false;
+
+  $('prompt-title').textContent = s.title;
+  const cards = $('cards');
+  cards.classList.toggle('few', s.cands.length <= 3);
+  cards.style.setProperty('--n', s.cands.length);
+  cards.innerHTML = s.cands.map((idx) => cardHTML(idx, game.type, selected.indexOf(idx) + 1)).join('');
+  updateSelectionUI(s);
+}
+
+function updateSelectionUI(s) {
+  $('prompt-hint').textContent = `已選 ${selected.length} / ${s.need}`;
+  const btn = $('btn-next');
+  btn.disabled = selected.length !== s.need;
+  btn.textContent = selected.length === s.need ? '確定，下一步' : `還要選 ${s.need - selected.length} 位`;
+  for (const el of $('cards').children) {
+    const n = selected.indexOf(Number(el.dataset.idx)) + 1;
+    el.classList.toggle('sel', n > 0);
+    el.setAttribute('aria-pressed', n > 0);
+    el.querySelector('.check').textContent = n || '';
+  }
+}
+
+function toggle(idx) {
+  const s = currentStep();
+  const at = selected.indexOf(idx);
+  if (at >= 0) selected.splice(at, 1);
+  else if (s.need === 1) selected = [idx];          // 單選時直接替換
+  else if (selected.length < s.need) selected.push(idx);
+  else {                                             // 已選滿：提示先取消
+    const hint = $('prompt-hint');
+    hint.classList.remove('flash'); void hint.offsetWidth; hint.classList.add('flash');
+    return;
+  }
+  updateSelectionUI(s);
+}
+
+// ---------- 結果頁：數據分析 ----------
+// 雷達圖軸（PR 值越高代表數值越大，不一定越好）
+const AXES = {
+  batters: [
+    { key: 'ISO', label: '長打力', sub: 'ISO' },
+    { key: 'K%', label: '三振率', sub: 'K%' },
+    { key: 'BB%', label: '保送率', sub: 'BB%' },
+    { key: 'Barrel%', label: '出色擊球率', sub: 'Barrel%' },
+    { key: 'LA', label: '擊球仰角', sub: '平均仰角' },
+  ],
+  pitchers: [
+    { key: 'Velo', label: '快速球均速', sub: '球速' },
+    { key: 'K%', label: '三振率', sub: 'K%' },
+    { key: 'BB%', label: '保送率', sub: 'BB%' },
+    { key: 'GO/AO', label: '滾飛出局比', sub: 'GO/AO' },
+  ],
+};
+
+// 加權輪廓：第 r 名權重 10 − r
+function profile(type, ranked) {
+  const axes = AXES[type];
+  const wSum = ranked.reduce((s, _, i) => s + (9 - i), 0);
+  return axes.map((a) => ranked.reduce((s, idx, i) => s + (9 - i) * DATA[type][idx].pr[a.key], 0) / wSum);
+}
+
+// 相似度 = (1 − d / (100√k)) × 100%，排除九宮格後取前 3 名
+function recommend(type, ranked, prof, n = 3) {
+  const axes = AXES[type];
+  const maxD = 100 * Math.sqrt(axes.length);
+  return DATA[type]
+    .map((p, idx) => {
+      const d = Math.sqrt(axes.reduce((s, a, j) => s + (prof[j] - p.pr[a.key]) ** 2, 0));
+      return { idx, sim: (1 - d / maxD) * 100 };
+    })
+    .filter((r) => !ranked.includes(r.idx))
+    .sort((a, b) => b.sim - a.sim)
+    .slice(0, n);
+}
+
+const fmtIP = (ip) => { const w = Math.floor(ip + 1e-6); return `${w}.${Math.round((ip - w) * 3)}`; };
+
+function statColumns(type) {
+  return type === 'batters'
+    ? [['打席', (p) => p.PA], ['打擊率', (p) => fmtRate(p.display.AVG)], ['上壘率', (p) => fmtRate(p.display.OBP)],
+       ['長打率', (p) => fmtRate(p.display.SLG)], ['OPS', (p) => fmtRate(p.display.OPS)], ['全壘打', (p) => p.display.HR],
+       ['打點', (p) => p.display.RBI], ['盜壘', (p) => p.display.SB]]
+    : [['角色', (p) => p.role], ['出賽', (p) => p.G], ['局數', (p) => fmtIP(p.IP)], ['防禦率', (p) => fmt2(p.display.ERA)],
+       ['WHIP', (p) => fmt2(p.display.WHIP)], ['勝-敗', (p) => `${p.display.W}-${p.display.L}`], ['救援', (p) => p.display.SV],
+       ['中繼', (p) => p.display.HLD], ['K%', (p) => p.raw['K%'].toFixed(1) + '%'], ['BB%', (p) => p.raw['BB%'].toFixed(1) + '%']];
+}
+
+function renderStatTable(type, ranked) {
+  const cols = statColumns(type);
+  const head = `<tr><th class="who">球員</th>${cols.map(([h]) => `<th>${h}</th>`).join('')}</tr>`;
+  const rows = ranked.map((idx, i) => {
+    const p = DATA[type][idx];
+    const t = team(p);
+    return `<tr><td class="who" style="--team:${t.color}"><b>${i + 1}</b>${esc(displayName(p))}<small>${esc(t.short)}</small></td>
+      ${cols.map(([, f]) => `<td>${esc(f(p))}</td>`).join('')}</tr>`;
+  }).join('');
+  $('stat-table').innerHTML = `<thead>${head}</thead><tbody>${rows}</tbody>`;
+}
+
+function renderRadar(type, prof) {
+  const axes = AXES[type];
+  const R = 95;
+  const pt = (j, v) => {
+    const a = -Math.PI / 2 + (2 * Math.PI * j) / axes.length;
+    return [Math.cos(a) * R * v / 100, Math.sin(a) * R * v / 100];
+  };
+  const poly = (vals) => vals.map((v, j) => pt(j, v).map((n) => n.toFixed(1)).join(',')).join(' ');
+  let svg = '';
+  for (const lv of [25, 75, 100]) svg += `<polygon class="ring" points="${poly(axes.map(() => lv))}"/>`;
+  axes.forEach((_, j) => { const [x, y] = pt(j, 100); svg += `<line class="spoke" x1="0" y1="0" x2="${x}" y2="${y}"/>`; });
+  svg += `<polygon class="avg" points="${poly(axes.map(() => 50))}"/>`;
+  svg += `<polygon class="mine" points="${poly(prof)}"/>`;
+  prof.forEach((v, j) => { const [x, y] = pt(j, v); svg += `<circle class="dot" cx="${x}" cy="${y}" r="3.5"/>`; });
+  for (const lv of [50, 100]) svg += `<text class="tick" x="3" y="${-lv + 10}">${lv}</text>`;
+  axes.forEach((a, j) => {
+    const [x, y] = pt(j, 112);
+    const anchor = Math.abs(x) < 5 ? 'middle' : x > 0 ? 'start' : 'end';
+    const top = y < -5 ? y - 30 : y > 5 ? y + 10 : y - 12;  // 三行文字的第一行位置
+    svg += `<text text-anchor="${anchor}" x="${x}">
+      <tspan class="lbl" x="${x}" y="${top}">${a.label}</tspan>
+      <tspan class="tick" x="${x}" y="${top + 13}">${a.sub}</tspan>
+      <tspan class="val" x="${x}" y="${top + 28}">PR ${Math.round(prof[j])}</tspan></text>`;
+  });
+  $('radar').innerHTML = svg;
+  $('radar-note').textContent = '九宮格球員的加權平均輪廓（第 1 名權重 9、第 9 名權重 1）。'
+    + 'PR 值是在資格池內的百分等級，越高代表該項數值越大，不一定代表越好，'
+    + (type === 'batters' ? '例如三振率 PR 高代表常被三振。' : '例如保送率 PR 高代表投出較多保送。');
+}
+
+function renderRecs(type, recs) {
+  $('recs').innerHTML = recs.map(({ idx, sim }) => {
+    const p = DATA[type][idx];
+    const t = team(p);
+    const meta = type === 'batters'
+      ? `打擊率 ${fmtRate(p.display.AVG)}・全壘打 ${p.display.HR}・OPS ${fmtRate(p.display.OPS)}`
+      : `${p.role}・防禦率 ${fmt2(p.display.ERA)}・WHIP ${fmt2(p.display.WHIP)}`;
+    return `<div class="rec" style="--team:${t.color}">
+      <div class="rname">${esc(displayName(p))}</div>
+      <div class="sim">${sim.toFixed(1)}%<small>相似度</small></div>
+      <div class="rmeta">${esc(t.short)}・${esc(meta)}</div>
+    </div>`;
+  }).join('');
+}
+
+function renderResult() {
+  renderProgress('');
+  $('pick').hidden = true;
+  $('result').hidden = false;
+  $('actionbar').hidden = true;
+  $('result-sub').textContent = `${TYPE_LABEL[game.type]}篇・第 1 名在左上，依序排到第 9 名`;
+  $('grid9').innerHTML = game.ranked.map((idx, i) => {
+    const p = DATA[game.type][idx];
+    const t = team(p);
+    const name = displayName(p);
+    return `<div class="cell" style="--team:${t.color};--team-ink:${t.ink}">
+      <span class="rank${i < 3 ? ' top' : ''}">${i + 1}</span>
+      <span class="cname${name.length > 4 ? ' long' : ''}">${esc(name)}</span>
+      <span class="cteam">${esc(t.short)}${game.type === 'pitchers' ? '・' + esc(p.role) : ''}</span>
+    </div>`;
+  }).join('');
+
+  const prof = profile(game.type, game.ranked);
+  renderStatTable(game.type, game.ranked);
+  renderRadar(game.type, prof);
+  renderRecs(game.type, recommend(game.type, game.ranked, prof));
+}
+
+// ---------- 事件 ----------
+document.querySelectorAll('.mode').forEach((b) => b.addEventListener('click', () => newGame(b.dataset.type)));
+$('cards').addEventListener('click', (e) => {
+  const card = e.target.closest('.card');
+  if (card) toggle(Number(card.dataset.idx));
+});
+$('btn-next').addEventListener('click', () => {
+  if (selected.length === currentStep().need) submit(selected.slice());
+});
+$('btn-back').addEventListener('click', back);
+$('btn-home').addEventListener('click', () => {
+  if (game.stage === 'result' || confirm('回到首頁會放棄目前的進度，確定嗎？')) show('home');
+});
+$('btn-restart').addEventListener('click', () => show('home'));
+
+// 首頁說明文字
+for (const type of ['batters', 'pitchers']) {
+  $(`desc-${type}`).textContent = `資格池 ${DATA[type].length} 人・共 ${totalSteps(type)} 步`;
+}
+$('home-note').textContent = `資料：${DATA.meta.season} 年中職一軍例行賽，打者 ${DATA.meta.thresholds.batter_min_pa} 打席以上；投手依先發、搖擺人、後援各自門檻。`;
+</script>
+</body>
+</html>
